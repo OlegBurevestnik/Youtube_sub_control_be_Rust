@@ -1,12 +1,13 @@
+pub mod auth_routes;
+
+use crate::routes::auth_routes::{auth_callback_handler, auth_url_handler};
 use axum::{
-    routing::{get, post},
+    routing::get,
     Router,
 };
 
-use crate::handlers::{get_hello, create_user};
-
 pub fn api_routes() -> Router {
     Router::new()
-        .route("/", get(get_hello))
-        .route("/users", post(create_user))
+        .route("/auth-url", get(auth_url_handler))
+        .route("/auth/callback", get(auth_callback_handler))
 }

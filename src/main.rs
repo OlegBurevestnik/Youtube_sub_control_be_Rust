@@ -1,23 +1,25 @@
-use axum::{Router, routing::get, serve};
-use tokio::net::TcpListener;
-use std::net::SocketAddr;
-
-mod handlers;
-mod routes;
-mod models;
-
+use anyhow::Result;
+use axum::serve;
+use axum::Router;
+use dotenvy::dotenv;
 use routes::api_routes;
+use std::net::SocketAddr;
+use tokio::net::TcpListener;
+
+mod auth;
+mod routes;
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<()> {
+    dotenv().ok();
+    tracing_subscriber::fmt::init();
+
     let app: Router = api_routes();
 
-    // 🎯 Собираем TcpListener вместо SocketAddr
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = SocketAddr::from(([127, 0, 0, 1], 8000));
     let listener = TcpListener::bind(addr).await?;
     println!("🚀 Server running at http://{}", addr);
 
-    // ✅ Передаём listener и app
     serve(listener, app).await?;
     Ok(())
 }
