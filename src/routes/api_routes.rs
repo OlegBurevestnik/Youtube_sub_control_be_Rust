@@ -1,17 +1,19 @@
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
-use reqwest::Client;
+use axum::{extract::State, Json};
+use axum_extra::extract::cookie::CookieJar;
 use crate::state::AppState;
+use reqwest::Client;
+use serde_json::Value;
 
-pub async fn get_subscriptions(State(state): State<AppState>) -> impl IntoResponse {
-    let Some(token) = state.get_token() else {
-        return (StatusCode::UNAUTHORIZED, "Missing token").into_response();
+pub async fn get_subscriptions(
+    State(state): State<AppState>,
+    jar: CookieJar,
+) -> Json<Value> {
+    let Some(token) = jar.get("access_token").map(|c| c.value().to_string()) else {
+        return Json(serde_json::json!({ "error": "No token" }));
     };
 
-    let url = "https://www.googleapis.com/youtube/v3/subscriptions";
-    let client = Client::new();
-
-    let res = client
-        .get(url)
+    let res = Client::new()
+        .get("https://www.googleapis.com/youtube/v3/subscriptions")
         .bearer_auth(token)
         .query(&[
             ("part", "snippet"),
@@ -19,26 +21,9 @@ pub async fn get_subscriptions(State(state): State<AppState>) -> impl IntoRespon
             ("maxResults", "50"),
         ])
         .send()
-        .await;
+        .await
+        .unwrap();
 
-    match res {
-        Ok(response) => {
-            if response.status().is_success() {
-                let json = response
-                    .json::<serde_json::Value>()
-                    .await
-                    .unwrap_or_else(|_| serde_json::json!({ "error": "Invalid JSON" }));
-                Json(json).into_response()
-            } else {
-                // ❗ Преобразуем reqwest::StatusCode → axum::http::StatusCode
-                let status = StatusCode::from_u16(response.status().as_u16())
-                    .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-                (status, "YouTube API error").into_response()
-            }
-        }
-        Err(err) => {
-            eprintln!("Request error: {:?}", err);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Request failed").into_response()
-        }
-    }
+    let data = res.json::<Value>().await.unwrap();
+    Json(data)
 }

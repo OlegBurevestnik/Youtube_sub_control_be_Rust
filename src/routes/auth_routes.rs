@@ -1,28 +1,20 @@
-use axum::{extract::{Query, State}, http::StatusCode, response::IntoResponse};
-use std::collections::HashMap;
-use crate::{auth::google, state::AppState};
+use crate::auth::google::{self, AuthCallback};
+use crate::state::AppState;
+use axum::{extract::{Query, State}, response::IntoResponse};
+use axum_extra::extract::cookie::CookieJar;
 
 pub async fn auth_url_handler() -> impl IntoResponse {
     google::get_authorization_url().await
 }
 
-pub async fn auth_callback_handler(
-    Query(params): Query<HashMap<String, String>>,
-    State(state): State<AppState>,
-) -> impl IntoResponse {
-    if let Some(code) = params.get("code") {
-        match google::exchange_code(code).await {
-            Ok(token) => {
-                state.set_token(token.clone());
-                format!("✅ Access Token: {}", token).into_response()
-            }
-            Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Failed to exchange code").into_response(),
-        }
-    } else {
-        (StatusCode::BAD_REQUEST, "Missing code parameter").into_response()
-    }
+pub async fn auth_start_handler() -> impl IntoResponse {
+    google::auth_start().await
 }
 
-
-
-
+pub async fn auth_callback_handler(
+    Query(params): Query<AuthCallback>,
+    State(state): State<AppState>,
+    jar: CookieJar,
+) -> impl IntoResponse {
+    google::auth_callback(params, state, jar).await
+}
