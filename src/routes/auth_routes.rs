@@ -3,10 +3,6 @@ use crate::state::AppState;
 use axum::{extract::{Query, State}, response::IntoResponse};
 use axum_extra::extract::cookie::CookieJar;
 
-pub async fn auth_url_handler() -> impl IntoResponse {
-    google::get_authorization_url().await
-}
-
 pub async fn auth_start_handler() -> impl IntoResponse {
     google::auth_start().await
 }
