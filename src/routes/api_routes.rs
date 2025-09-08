@@ -166,7 +166,7 @@ pub struct UnsubscribeRequest {
 }
 
 pub async fn unsubscribe_handler(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,          // ⬅️ нужно получить state
     jar: CookieJar,
     Json(payload): Json<UnsubscribeRequest>,
 ) -> impl IntoResponse {
@@ -192,5 +192,14 @@ pub async fn unsubscribe_handler(
         }
     }
 
-    Json(success_ids).into_response()
+    // ⬇️ ВАЖНО: после любых успешных удалений — сбрасываем кэш и page_tokens пользователя
+    if !success_ids.is_empty() {
+        state.subs_cache_invalidate_user(&token);
+        state.page_tokens_clear_user(&token);
+    }
+
+    Json(json!({
+        "deleted": success_ids
+    }))
+        .into_response()
 }

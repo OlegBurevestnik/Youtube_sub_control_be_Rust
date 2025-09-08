@@ -11,7 +11,7 @@ pub struct AppState {
     // tokens[user][0] = None (стр.1), tokens[user][1] = Some(token для стр.2), ...
     pub page_tokens: Arc<RwLock<HashMap<String, Vec<Option<String>>>>>,
     // 🔹 Кэш уже собранного списка подписок (после глобальной сортировки и фильтра)
-    // Ключ: произвольная строка (например, "subs::user={access_token}:q={query}")
+    // Ключ: произвольная строка (например, "subs::user={access_token}:q={query}:sort={asc|desc}")
     pub subs_cache: Arc<RwLock<HashMap<String, CacheEntry>>>,
 }
 
@@ -100,15 +100,38 @@ impl AppState {
         );
     }
 
-    /// Опционально: очистить конкретный ключ кэша (например, при принудительном обновлении)
+    /// Очистить конкретный ключ кэша (например, при принудительном обновлении)
     pub fn subs_cache_invalidate(&self, key: &str) {
         let mut map = self.subs_cache.write().unwrap();
         map.remove(key);
     }
 
-    /// Опционально: полностью очистить кэш подписок
+    /// Полностью очистить кэш подписок
     pub fn subs_cache_clear(&self) {
         let mut map = self.subs_cache.write().unwrap();
         map.clear();
+    }
+
+    /// ✅ Инвалидация всех записей кэша подписок для конкретного пользователя.
+    /// Ожидается, что user_key совпадает с частью ключа (в твоём коде это access_token).
+    /// Ключи кэша имеют формат "subs::user={user_key}:..."
+    pub fn subs_cache_invalidate_user(&self, user_key: &str) {
+        let mut map = self.subs_cache.write().unwrap();
+        let prefix = format!("subs::user={}", user_key);
+        // Собираем список ключей, чтобы избежать мутирования во время итерации
+        let keys_to_remove: Vec<String> = map
+            .keys()
+            .filter(|k| k.starts_with(&prefix))
+            .cloned()
+            .collect();
+        for k in keys_to_remove {
+            map.remove(&k);
+        }
+    }
+
+    /// ✅ Полностью очистить цепочку pageToken'ов для пользователя (чтобы перечитать с нуля)
+    pub fn page_tokens_clear_user(&self, user_key: &str) {
+        let mut map = self.page_tokens.write().unwrap();
+        map.remove(user_key);
     }
 }
