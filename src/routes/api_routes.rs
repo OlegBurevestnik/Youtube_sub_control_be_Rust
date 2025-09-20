@@ -7,7 +7,6 @@ use axum::{
 use axum_extra::extract::cookie::CookieJar;
 use serde::Deserialize;
 use serde_json::{json, Value};
-
 use crate::state::AppState;
 use std::time::Duration;
 
@@ -202,4 +201,19 @@ pub async fn unsubscribe_handler(
         "deleted": success_ids
     }))
         .into_response()
+}
+
+pub async fn refresh_subs_cache_handler(
+    State(state): State<AppState>,
+    jar: CookieJar,
+) -> impl IntoResponse {
+    let Some(token) = jar.get("access_token").map(|c| c.value().to_string()) else {
+        return (StatusCode::UNAUTHORIZED, "Missing token").into_response();
+    };
+
+    // Сбрасываем кэш и pageTokens
+    state.subs_cache_invalidate_user(&token);
+    state.page_tokens_clear_user(&token);
+
+    StatusCode::NO_CONTENT.into_response()
 }

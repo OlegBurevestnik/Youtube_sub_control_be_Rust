@@ -11,6 +11,7 @@ use crate::{
 };
 use axum::{routing::get, Router};
 use axum::routing::post;
+use crate::routes::api_routes::refresh_subs_cache_handler;
 
 pub fn api_routes(app_state: AppState) -> Router {
     Router::new()
@@ -18,5 +19,6 @@ pub fn api_routes(app_state: AppState) -> Router {
         .route("/api/auth/callback", get(auth_callback_handler))
         .route("/api/subscriptions", get(get_subscriptions))
         .route("/api/unsubscribe", post(unsubscribe_handler))
+        .route("/api/subscriptions/refresh", post(refresh_subs_cache_handler)) // ← новый
         .with_state(app_state)
 }
